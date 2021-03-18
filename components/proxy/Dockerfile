@@ -1,54 +1,17 @@
-# Copyright (c) 2020 Gitpod GmbH. All rights reserved.
-# Licensed under the GNU Affero General Public License (AGPL).
-# See License-AGPL.txt in the project root for license information.
+FROM caddy:2.3.0-builder AS builder
 
-FROM openresty/openresty:1.19.3.1-3-alpine
+WORKDIR /plugin
 
-# Debug convenience
-ENV TERM=xterm
-ENV SHELL=/bin/bash
+COPY plugin/go.* /plugin/
 
-RUN apk add --no-cache \
-      vim \
-      less \
-      bind-tools \
-      curl \
-      apache2-utils \
-      gettext \
-      bash
+RUN go mod download
 
-# Include certbot into the proxy for HTTPS termination
-RUN curl -o /usr/bin/lama -sSL https://github.com/csweichel/lama/releases/download/v0.3.0/lama_0.3.0_Linux_x86_64 \
-    && chmod +x /usr/bin/lama \
-    && mkdir -p /var/www/lama/nginx \
-    && touch /var/www/lama/nginx/status
+COPY plugin /plugin
 
-RUN apk add --no-cache \
-      procps \
-      certbot \
-      certbot-nginx
+RUN xcaddy build \
+  --output /usr/bin/caddy \
+  --with github.com/gitpod-io/gitpod/proxy/plugin=/plugin
 
-RUN set -e \
-    && apk add --no-cache git \
-    && cd /tmp \
-    && git clone https://github.com/cloudflare/lua-resty-cookie/ \
-    && cp lua-resty-cookie/lib/resty/*.lua /usr/local/openresty/site/lualib/ \
-    && apk del git \
-    && rm -rf /tmp/*
+FROM caddy:2.3.0
 
-# Update alpine packages
-RUN apk upgrade --no-cache
-
-# nginx config templates...
-#COPY conf/  /etc/nginx/
-# .. and startup script
-COPY startup/nginx.sh /nginx.sh
-
-COPY conf/lua-prometheus /etc/nginx/lua-prometheus
-
-# ip.mygitpod.com HTTPS support
-COPY nodomain-certs/* /nodomain-certs/
-
-# Run!
-EXPOSE 8080
-CMD ["/nginx.sh"]
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
