@@ -5,7 +5,7 @@
  */
 
 // package: iws
-// file: workspace.proto
+// file: workspace_daemon.proto
 
 /* tslint:disable */
 /* eslint-disable */
