@@ -30,6 +30,8 @@ function toBool(b: WorkspaceConditionBool | undefined): boolean | undefined {
     return b === WorkspaceConditionBool.TRUE;
 }
 
+export type WorkspaceClusterInfo = Pick<WorkspaceCluster, "name" | "url" | "controller">;
+
 @injectable()
 export class WorkspaceManagerBridge implements Disposable {
     @inject(TracedWorkspaceDB)
@@ -50,7 +52,7 @@ export class WorkspaceManagerBridge implements Disposable {
     protected readonly disposables: Disposable[] = [];
     protected readonly queues = new Map<string, Queue>();
 
-    public start(cluster: WorkspaceCluster, clientProvider: ClientProvider) {
+    public start(cluster: WorkspaceClusterInfo, clientProvider: ClientProvider) {
         const logPayload = { name: cluster.name, url: cluster.url };
         log.debug(`starting bridge to cluster...`, logPayload);
 

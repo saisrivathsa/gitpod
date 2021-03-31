@@ -9,7 +9,7 @@
  import { TypeORM } from "./typeorm";
 import { WorkspaceClusterDB } from "../workspace-cluster-db";
 import { DBWorkspaceCluster } from "./entity/db-workspace-cluster";
-import { WorkspaceCluster, WorkspaceClusterFilter } from "@gitpod/gitpod-protocol/lib/workspace-cluster";
+import { WorkspaceCluster, WorkspaceClusterFilter, WorkspaceClusterWoTls } from "@gitpod/gitpod-protocol/lib/workspace-cluster";
  
  @injectable()
  export class WorkspaceClusterDBImpl implements WorkspaceClusterDB {
@@ -39,23 +39,34 @@ import { WorkspaceCluster, WorkspaceClusterFilter } from "@gitpod/gitpod-protoco
          return repo.findOneById(name);
      }
 
-     async findFiltered(predicate: DeepPartial<WorkspaceClusterFilter>): Promise<WorkspaceCluster[]> {
+
+    async findFiltered(predicate: DeepPartial<WorkspaceClusterFilter>): Promise<WorkspaceClusterWoTls[]> {
+        const prototype: WorkspaceClusterWoTls = {
+            name: "",
+            url: "",
+            score: 0,
+            maxScore: 0,
+            state: "available",
+            controller: "",
+        };
+
         const repo = await this.getRepo();
         let qb = repo.createQueryBuilder("wsc")
+            .select(Object.keys(prototype).map(k => `wsc.${k}`))
             .where("TRUE = TRUE");  // make sure andWhere works
         if (predicate.state !== undefined) {
-            qb.andWhere("wsc.state = :state", predicate);
+            qb = qb.andWhere("wsc.state = :state", predicate);
         }
         if (predicate.minScore !== undefined) {
-            qb.andWhere("wsc.score >= :minScore", predicate);
+            qb = qb.andWhere("wsc.score >= :minScore", predicate);
         }
         if (predicate.controller !== undefined) {
-            qb.andWhere("wsc.controller = :controller", predicate);
+            qb = qb.andWhere("wsc.controller = :controller", predicate);
         }
         if (predicate.url !== undefined) {
-            qb.andWhere("wsc.url = :url", predicate);
+            qb = qb.andWhere("wsc.url = :url", predicate);
         }
         return qb.getMany();
-     }
+    }
  }
  

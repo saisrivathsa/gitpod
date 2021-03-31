@@ -9,8 +9,8 @@ import { injectable, inject } from 'inversify';
 import { WorkspaceManagerClient } from './core_grpc_pb';
 import { PromisifiedWorkspaceManagerClient, linearBackoffStrategy } from "./promisified-client";
 import { Disposable } from "@gitpod/gitpod-protocol";
-import { WorkspaceCluster } from '@gitpod/gitpod-protocol/lib/workspace-cluster';
-import { WorkspaceManagerClientProviderCompositeSource, WorkspaceManagerClientProviderSource, WorkspaceManagerConnectionInfo } from "./client-provider-source";
+import { WorkspaceClusterWoTls, WorkspaceManagerConnectionInfo } from '@gitpod/gitpod-protocol/lib/workspace-cluster';
+import { WorkspaceManagerClientProviderCompositeSource, WorkspaceManagerClientProviderSource } from "./client-provider-source";
 import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 import { GetWorkspacesRequest } from "./core_pb";
 
@@ -32,7 +32,7 @@ export class WorkspaceManagerClientProvider implements Disposable {
     public async getStartManager(): Promise<{ manager: PromisifiedWorkspaceManagerClient, installation: string}> {
         const availableClusters = await this.source.getAvailableWorkspaceClusters();
         const chosenCluster = chooseCluster(availableClusters);
-        const client = await this.getFromInfo(chosenCluster.name, chosenCluster);
+        const client = await this.get(chosenCluster.name);
         return {
             manager: client,
             installation: chosenCluster.name,
@@ -44,21 +44,21 @@ export class WorkspaceManagerClientProvider implements Disposable {
      * @returns The WorkspaceManagerClient identified by the name. Throws an error if there is none.
      */
     public async get(name: string, grpcOptions?: object): Promise<PromisifiedWorkspaceManagerClient> {
-        const info = await this.source.getConnectionInfo(name);
-        if (!info) {
+        const cluster = await this.source.getWorkspaceCluster(name);
+        if (!cluster) {
             throw new Error(`Unknown workspace manager \"${name}\"`);
         }
-        return this.getFromInfo(name, info, grpcOptions);
+        return this.getFromCluster(name, cluster, grpcOptions);
     }
 
     /**
-     * @returns All WorkspaceCluster with state "available"
+     * @returns All WorkspaceClusterWoTls with state "available"
      */
-    public async getAllAvailableWorkspaceClusters(): Promise<WorkspaceCluster[]> {
+    public async getAvailableWorkspaceClusters(): Promise<WorkspaceClusterWoTls[]> {
         return this.source.getAvailableWorkspaceClusters();
     }
 
-    protected async getFromInfo(name: string, info: WorkspaceManagerConnectionInfo, grpcOptions?: object): Promise<PromisifiedWorkspaceManagerClient> {
+    protected async getFromCluster(name: string, info: WorkspaceManagerConnectionInfo, grpcOptions?: object): Promise<PromisifiedWorkspaceManagerClient> {
         let client = this.connectionCache.get(name);
         if (!client) {
             client = createClient(info, grpcOptions);
@@ -113,13 +113,13 @@ function createClient(info: WorkspaceManagerConnectionInfo, grpcOptions?: object
  * @param clusters 
  * @returns The chosen cluster. Throws an error if there are 0 WorkspaceClusters to choose from.
  */
-function chooseCluster(clusters: WorkspaceCluster[]): WorkspaceCluster {
+function chooseCluster(clusters: WorkspaceClusterWoTls[]): WorkspaceClusterWoTls {
     const availableCluster = clusters.filter((c) => c.score >= 0);
     if (availableCluster.length === 0) {
         throw new Error("No cluster to choose from!");
     }
 
-    const scoreFunc = (c: WorkspaceCluster): number => {
+    const scoreFunc = (c: WorkspaceClusterWoTls): number => {
         let score = c.score;    // here is the point where we may want to implement non-static approaches
 
         // clamp to maxScore

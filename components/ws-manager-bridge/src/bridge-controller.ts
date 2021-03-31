@@ -5,12 +5,12 @@
  */
 
 import { inject, injectable, interfaces } from "inversify";
-import { WorkspaceManagerBridge, WorkspaceManagerBridgeFactory } from "./bridge";
+import { WorkspaceClusterInfo, WorkspaceManagerBridge, WorkspaceManagerBridgeFactory } from "./bridge";
 import { Configuration } from "./config";
 import { WorkspaceManagerClientProvider } from '@gitpod/ws-manager/lib/client-provider';
-import { WorkspaceManagerClientProviderSource, WorkspaceManagerConnectionInfo } from '@gitpod/ws-manager/lib/client-provider-source';
+import { WorkspaceManagerClientProviderSource } from '@gitpod/ws-manager/lib/client-provider-source';
 import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
-import { TLSConfig, WorkspaceClusterDB } from "@gitpod/gitpod-protocol/lib/workspace-cluster";
+import { TLSConfig, WorkspaceClusterDB, WorkspaceClusterWoTls } from "@gitpod/gitpod-protocol/lib/workspace-cluster";
 import { WorkspaceCluster } from "@gitpod/gitpod-protocol/lib/workspace-cluster";
 import { Queue } from "@gitpod/gitpod-protocol";
 
@@ -54,7 +54,7 @@ export class BridgeController {
 
     protected async reconcile() {
         return this.reconcileQueue.enqueue(async () => {
-            const availableClusters = await this.gatherAvailableWorkspaceCluster();
+            const availableClusters = await this.getAvailableWorkspaceClusters();
             const toDelete: string[] = [];
             try {
                 for (const [name, bridge] of this.bridges) {
@@ -82,7 +82,7 @@ export class BridgeController {
         });
     }
 
-    protected async createAndStartBridge(cluster: WorkspaceCluster): Promise<WorkspaceManagerBridge> {
+    protected async createAndStartBridge(cluster: WorkspaceClusterInfo): Promise<WorkspaceManagerBridge> {
         const bridge = this.bridgeFactory() as WorkspaceManagerBridge;
         const clientProvider = async () => {
             const grpcOptions = {
@@ -96,10 +96,10 @@ export class BridgeController {
         return bridge;
     }
 
-    protected async gatherAvailableWorkspaceCluster(): Promise<Map<string, WorkspaceCluster>> {
-        const allClusters = await this.clientProvider.getAllAvailableWorkspaceClusters();
-        const result: Map<string, WorkspaceCluster> = new Map();
-        for (const cluster of allClusters) {
+    protected async getAvailableWorkspaceClusters(): Promise<Map<string, WorkspaceClusterWoTls>> {
+        const allInfos = await this.clientProvider.getAvailableWorkspaceClusters();
+        const result: Map<string, WorkspaceClusterWoTls> = new Map();
+        for (const cluster of allInfos) {
             result.set(cluster.name, cluster);
         }
         return result;
@@ -125,11 +125,11 @@ export class WorkspaceManagerClientProviderConfigSource implements WorkspaceMana
     @inject(Configuration)
     protected readonly config: Configuration;
 
-    public async getConnectionInfo(name: string): Promise<WorkspaceManagerConnectionInfo | undefined> {
+    public async getWorkspaceCluster(name: string): Promise<WorkspaceCluster | undefined> {
         return this.clusters.find(m => m.name === name);
     }
 
-    public async getAvailableWorkspaceClusters(): Promise<WorkspaceCluster[]> {
+    public async getAvailableWorkspaceClusters(): Promise<WorkspaceClusterWoTls[]> {
         return this.clusters.filter(c => c.state === "available");
     }
 

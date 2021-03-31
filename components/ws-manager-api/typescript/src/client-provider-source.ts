@@ -4,28 +4,26 @@
  * See License-AGPL.txt in the project root for license information.
  */
 import { injectable, inject, multiInject } from 'inversify';
-import { TLSConfig, WorkspaceCluster, WorkspaceClusterDB } from '@gitpod/gitpod-protocol/lib/workspace-cluster';
+import { TLSConfig, WorkspaceCluster, WorkspaceClusterDB, WorkspaceClusterWoTls } from '@gitpod/gitpod-protocol/lib/workspace-cluster';
 import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
 
 export const WorkspaceManagerClientProviderSource = Symbol("WorkspaceManagerClientProviderSource");
 
 export interface WorkspaceManagerClientProviderSource {
-    getConnectionInfo(name: string): Promise<WorkspaceManagerConnectionInfo | undefined>;
-    getAvailableWorkspaceClusters(): Promise<WorkspaceCluster[]>;
+    getWorkspaceCluster(name: string): Promise<WorkspaceCluster | undefined>;
+    getAvailableWorkspaceClusters(): Promise<WorkspaceClusterWoTls[]>;
 }
-
-export type WorkspaceManagerConnectionInfo = Pick<WorkspaceCluster, "url" | "tls">;
 
 
 @injectable()
 export class WorkspaceManagerClientProviderEnvSource implements WorkspaceManagerClientProviderSource {
     protected _clusters: WorkspaceCluster[] | undefined = undefined;
 
-    public async getConnectionInfo(name: string): Promise<WorkspaceManagerConnectionInfo | undefined> {
+    public async getWorkspaceCluster(name: string): Promise<WorkspaceCluster | undefined> {
         return this.clusters.find(m => m.name === name);
     }
 
-    public async getAvailableWorkspaceClusters(): Promise<WorkspaceCluster[]> {
+    public async getAvailableWorkspaceClusters(): Promise<WorkspaceClusterWoTls[]> {
         return this.clusters.filter(c => c.state === "available");
     }
 
@@ -66,11 +64,11 @@ export class WorkspaceManagerClientProviderDBSource implements WorkspaceManagerC
     @inject(WorkspaceClusterDB)
     protected readonly db: WorkspaceClusterDB;
 
-    public async getConnectionInfo(name: string): Promise<WorkspaceManagerConnectionInfo | undefined> {
+    public async getWorkspaceCluster(name: string): Promise<WorkspaceCluster | undefined> {
         return await this.db.findByName(name);
     }
 
-    public async getAvailableWorkspaceClusters(): Promise<WorkspaceCluster[]> {
+    public async getAvailableWorkspaceClusters(): Promise<WorkspaceClusterWoTls[]> {
         return await this.db.findFiltered({ state: "available" });
     }
 }
@@ -80,9 +78,9 @@ export class WorkspaceManagerClientProviderCompositeSource implements WorkspaceM
     @multiInject(WorkspaceManagerClientProviderSource)
     protected readonly sources: WorkspaceManagerClientProviderSource[];
 
-    async getConnectionInfo(name: string): Promise<WorkspaceManagerConnectionInfo | undefined> {
+    async getWorkspaceCluster(name: string): Promise<WorkspaceCluster | undefined> {
         for (const source of this.sources) {
-            const info = await source.getConnectionInfo(name);
+            const info = await source.getWorkspaceCluster(name);
             if (info !== undefined) {
                 return info;
             }
@@ -90,8 +88,8 @@ export class WorkspaceManagerClientProviderCompositeSource implements WorkspaceM
         return undefined;
     }
 
-    async getAvailableWorkspaceClusters(): Promise<WorkspaceCluster[]> {
-        const allClusters: Map<string, WorkspaceCluster> = new Map();
+    async getAvailableWorkspaceClusters(): Promise<WorkspaceClusterWoTls[]> {
+        const allClusters: Map<string, WorkspaceClusterWoTls> = new Map();
         for (const source of this.sources) {
             const clusters = await source.getAvailableWorkspaceClusters();
             for (const cluster of clusters) {
@@ -101,7 +99,7 @@ export class WorkspaceManagerClientProviderCompositeSource implements WorkspaceM
                 allClusters.set(cluster.name, cluster);
             }
         }
-        const result: WorkspaceCluster[] = [];
+        const result: WorkspaceClusterWoTls[] = [];
         for (const [_, cluster] of allClusters) {
             result.push(cluster);
         }

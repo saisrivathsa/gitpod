@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import { filePathTelepresenceAware } from './env';
 import { DeepPartial } from "./util/deep-partial";
+import { Without } from './util/without';
 
 export interface WorkspaceCluster {
     // Name of the workspace cluster.
@@ -44,7 +45,8 @@ export interface TLSConfig {
 export namespace TLSConfig {
     export const loadFromBase64File = (path: string): string => fs.readFileSync(filePathTelepresenceAware(path)).toString("base64");
 }
-
+export type WorkspaceClusterWoTls = Without<WorkspaceCluster, "tls">;
+export type WorkspaceManagerConnectionInfo = Pick<WorkspaceCluster, "name" | "url" | "tls">;
 
 export const WorkspaceClusterDB = Symbol("WorkspaceClusterDB");
 export interface WorkspaceClusterDB {
@@ -68,10 +70,10 @@ export interface WorkspaceClusterDB {
     findByName(name: string): Promise<WorkspaceCluster | undefined>;
 
     /**
-     * Lists all WorkspaceCluster for which the given predicate is true
+     * Lists all WorkspaceClusterWoTls for which the given predicate is true (does not return TLS for size/speed concerns)
      * @param predicate 
      */
-    findFiltered(predicate: DeepPartial<WorkspaceClusterFilter>): Promise<WorkspaceCluster[]>;
+    findFiltered(predicate: DeepPartial<WorkspaceClusterFilter>): Promise<WorkspaceClusterWoTls[]>;
 }
 export interface WorkspaceClusterFilter extends Pick<WorkspaceCluster, "state" | "controller" | "url"> {
     minScore: number;
