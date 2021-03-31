@@ -30,7 +30,7 @@ function toBool(b: WorkspaceConditionBool | undefined): boolean | undefined {
     return b === WorkspaceConditionBool.TRUE;
 }
 
-export type WorkspaceClusterInfo = Pick<WorkspaceCluster, "name" | "url" | "controller">;
+export type WorkspaceClusterInfo = Pick<WorkspaceCluster, "name" | "url" | "govern">;
 
 @injectable()
 export class WorkspaceManagerBridge implements Disposable {
@@ -54,21 +54,22 @@ export class WorkspaceManagerBridge implements Disposable {
 
     public start(cluster: WorkspaceClusterInfo, clientProvider: ClientProvider) {
         const logPayload = { name: cluster.name, url: cluster.url };
-        log.debug(`starting bridge to cluster...`, logPayload);
+        log.info(`starting bridge to cluster...`, logPayload);
 
-        if (cluster.controller === this.config.installation) {
+        if (cluster.govern) {
             log.debug(`starting DB updater: ${cluster.name}`, logPayload);
             /* no await */ this.startDatabaseUpdater(clientProvider, logPayload)
-                .catch(err => log.error("cannot run database updater", err));
+                // this is a mere safe-guard: we do not expect the code inside to fail
+                .catch(err => log.error("cannot start database updater", err));   
 
             const controllerInterval = this.config.controllerIntervalSeconds;
             if (controllerInterval <= 0) {
                 throw new Error("controllerInterval <= 0!");
             }
             log.debug(`starting controller: ${cluster.name}`, logPayload);
-            this.startController(clientProvider, this.config.installation, controllerInterval, this.config.controllerMaxDisconnectSeconds);
+            this.startController(clientProvider, cluster.name, controllerInterval, this.config.controllerMaxDisconnectSeconds);
         }
-        log.debug(`started bridge to cluster.`, logPayload);
+        log.info(`started bridge to cluster.`, logPayload);
     }
 
     public stop() {
