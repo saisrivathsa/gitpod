@@ -72,12 +72,12 @@ export class ClusterService implements IClusterServiceServer {
 
                 // store the ws-manager into the database
                 let perfereability = Preferability.NONE;
-                let controller = "";
+                let govern = false;
                 let state: WorkspaceClusterState = "available";
                 if (req.hints) {
                     perfereability = req.hints.perfereability;
                     if (req.hints.govern) {
-                        controller = this.config.installation;
+                        govern = req.hints.govern;
                     }
                     state = mapCordoned(req.hints.cordoned);
                 }
@@ -102,7 +102,7 @@ export class ClusterService implements IClusterServiceServer {
                     state,
                     score,
                     maxScore: 100,
-                    controller,
+                    govern,
                     tls,
                 };
 
@@ -129,13 +129,13 @@ export class ClusterService implements IClusterServiceServer {
                     throw new GRPCError(grpc.status.ALREADY_EXISTS, `a WorkspaceCluster with name ${req.name} already exists in the DB!`);
                 }
 
-                if (req.maxScore !== undefined) {
+                if (call.request.hasMaxScore()) {
                     cluster.maxScore = req.maxScore;
                 }
-                if (req.score !== undefined) {
+                if (call.request.hasScore()) {
                     cluster.score = req.score;
                 }
-                if (req.cordoned !== undefined) {
+                if (call.request.hasCordoned()) {
                     cluster.state = mapCordoned(req.cordoned);
                 }
                 await this.db.save(cluster);
