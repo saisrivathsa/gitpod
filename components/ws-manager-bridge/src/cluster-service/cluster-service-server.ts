@@ -82,15 +82,15 @@ export class ClusterService implements IClusterServiceServer {
                     throw new GRPCError(grpc.status.INVALID_ARGUMENT, `unknown Preferability ${perfereability}!`);
                 }
 
-                let tls: TLSConfig | undefined = undefined;
-                if (req.tls) {
-                    // we assume that client's have already base64-encoded their input!
-                    tls = {
-                        ca: req.tls.ca,
-                        crt: req.tls.crt,
-                        key: req.tls.key
-                    };
+                if (!req.tls) {
+                    throw new GRPCError(grpc.status.INVALID_ARGUMENT, "missing required TLS config");
                 }
+                // we assume that client's have already base64-encoded their input!
+                const tls: TLSConfig = {
+                    ca: req.tls.ca,
+                    crt: req.tls.crt,
+                    key: req.tls.key
+                };
 
                 const newCluster: WorkspaceCluster = {
                     name: req.name,
