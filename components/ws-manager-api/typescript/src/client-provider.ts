@@ -100,9 +100,10 @@ function createClient(info: WorkspaceManagerConnectionInfo, grpcOptions?: object
     } else {
         credentials = grpc.credentials.createInsecure();
     }
-    
+
     const options = {
-        ...grpcOptions
+        ...grpcOptions,
+        'grpc.ssl_target_name_override': "ws-manager",  // this makes sure we can call ws-manager with a URL different to "ws-manager"
     };
     return new WorkspaceManagerClient(info.url, credentials, options);
 }

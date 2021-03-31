@@ -154,6 +154,7 @@ var runCmd = &cobra.Command{
 				ClientAuth:   tls.RequireAndVerifyClientCert,
 				Certificates: []tls.Certificate{cert},
 				ClientCAs:    certPool,
+				ServerName:   "ws-manager",
 			})
 
 			grpcOpts = append(grpcOpts, grpc.Creds(creds))
