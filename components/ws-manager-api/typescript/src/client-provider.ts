@@ -12,6 +12,7 @@ import { Disposable } from "@gitpod/gitpod-protocol";
 import { WorkspaceCluster } from '@gitpod/gitpod-protocol/lib/workspace-cluster';
 import { WorkspaceManagerClientProviderCompositeSource, WorkspaceManagerClientProviderSource, WorkspaceManagerConnectionInfo } from "./client-provider-source";
 import { log } from '@gitpod/gitpod-protocol/lib/util/logging';
+import { GetWorkspacesRequest } from "./core_pb";
 
 @injectable()
 export class WorkspaceManagerClientProvider implements Disposable {
@@ -58,33 +59,15 @@ export class WorkspaceManagerClientProvider implements Disposable {
     }
 
     protected async getFromInfo(name: string, info: WorkspaceManagerConnectionInfo, grpcOptions?: object): Promise<PromisifiedWorkspaceManagerClient> {
-        const createClient = (): WorkspaceManagerClient => {
-            let credentials: grpc.ChannelCredentials;
-            if (info.tls) {
-                const rootCerts = Buffer.from(info.tls.ca, "base64");
-                const privateKey = Buffer.from(info.tls.key, "base64");
-                const certChain = Buffer.from(info.tls.crt, "base64");
-                credentials = grpc.credentials.createSsl(rootCerts, privateKey, certChain);
-                log.debug("using TLS config to connect ws-manager");
-            } else {
-                credentials = grpc.credentials.createInsecure();
-            }
-            
-            const options = {
-                ...grpcOptions
-            };
-            return new WorkspaceManagerClient(info.url, credentials, options);
-        }
-
         let client = this.connectionCache.get(name);
         if (!client) {
-            client = createClient();
+            client = createClient(info, grpcOptions);
             this.connectionCache.set(name, client);
         } else if(client.getChannel().getConnectivityState(true) != grpc.connectivityState.READY) {
             client.close();
 
             console.warn(`Lost connection to workspace manager \"${name}\" - attempting to reestablish`);
-            client = createClient();
+            client = createClient(info, grpcOptions);
             this.connectionCache.set(name, client);
         }
 
@@ -92,9 +75,36 @@ export class WorkspaceManagerClientProvider implements Disposable {
         return new PromisifiedWorkspaceManagerClient(client, linearBackoffStrategy(30, 1000, stopSignal), stopSignal);
     }
 
+    /**
+     * Tries to establish a gRPC connection to the specified target. Throws an exception if it fails.
+     * @param info 
+     */
+    public async tryConnectTo(info: WorkspaceManagerConnectionInfo) {
+        const client = new PromisifiedWorkspaceManagerClient(createClient(info));
+        await client.getWorkspaces({}, new GetWorkspacesRequest());
+    }
+
     public dispose() {
         Array.from(this.connectionCache.values()).map(c => c.close());
     }
+}
+
+function createClient(info: WorkspaceManagerConnectionInfo, grpcOptions?: object): WorkspaceManagerClient {
+    let credentials: grpc.ChannelCredentials;
+    if (info.tls) {
+        const rootCerts = Buffer.from(info.tls.ca, "base64");
+        const privateKey = Buffer.from(info.tls.key, "base64");
+        const certChain = Buffer.from(info.tls.crt, "base64");
+        credentials = grpc.credentials.createSsl(rootCerts, privateKey, certChain);
+        log.debug("using TLS config to connect ws-manager");
+    } else {
+        credentials = grpc.credentials.createInsecure();
+    }
+    
+    const options = {
+        ...grpcOptions
+    };
+    return new WorkspaceManagerClient(info.url, credentials, options);
 }
 
 /**

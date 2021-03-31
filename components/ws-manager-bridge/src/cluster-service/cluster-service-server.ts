@@ -22,6 +22,7 @@ import {
     UpdateRequest,
     UpdateResponse
 } from '@gitpod/ws-manager-bridge-api/lib';
+import { WorkspaceManagerClientProvider } from '@gitpod/ws-manager/lib/client-provider';
 import * as grpc from "grpc";
 import { inject, injectable } from 'inversify';
 import { BridgeController } from '../bridge-controller';
@@ -42,6 +43,9 @@ export class ClusterService implements IClusterServiceServer {
 
     @inject(BridgeController)
     protected readonly bridgeController: BridgeController;
+
+    @inject(WorkspaceManagerClientProvider)
+    protected readonly clientProvider: WorkspaceManagerClientProvider;
 
     // using a queue to make sure we do concurrency right
     protected readonly queue: Queue = new Queue();
@@ -101,6 +105,10 @@ export class ClusterService implements IClusterServiceServer {
                     controller,
                     tls,
                 };
+
+                // try to connect to validate the config. Throws an exception if it fails.
+                await this.clientProvider.tryConnectTo(newCluster);
+
                 await this.db.save(newCluster);
 
                 this.triggerReconcile("register", req.name);
