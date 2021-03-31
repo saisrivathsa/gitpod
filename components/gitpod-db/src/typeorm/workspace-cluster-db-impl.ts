@@ -47,7 +47,7 @@ import { WorkspaceCluster, WorkspaceClusterFilter, WorkspaceClusterWoTls } from 
             score: 0,
             maxScore: 0,
             state: "available",
-            controller: "",
+            govern: false,
         };
 
         const repo = await this.getRepo();
@@ -60,8 +60,8 @@ import { WorkspaceCluster, WorkspaceClusterFilter, WorkspaceClusterWoTls } from 
         if (predicate.minScore !== undefined) {
             qb = qb.andWhere("wsc.score >= :minScore", predicate);
         }
-        if (predicate.controller !== undefined) {
-            qb = qb.andWhere("wsc.controller = :controller", predicate);
+        if (predicate.govern !== undefined) {
+            qb = qb.andWhere("wsc.govern = :govern", predicate);
         }
         if (predicate.url !== undefined) {
             qb = qb.andWhere("wsc.url = :url", predicate);

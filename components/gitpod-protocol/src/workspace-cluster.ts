@@ -30,8 +30,8 @@ export interface WorkspaceCluster {
     // Score used for cluster selection when starting workspace instances
     score: number;
 
-    // If the value herein matches the short name of a fat cluster's ws-manager-bridge installation, that bridge is to control the workspace cluster.
-    controller: string;
+    // True if this bridge should control this cluster
+    govern: boolean;
 }
 export type WorkspaceClusterState = "available" | "cordoned" | "draining";
 export interface TLSConfig {
@@ -75,6 +75,6 @@ export interface WorkspaceClusterDB {
      */
     findFiltered(predicate: DeepPartial<WorkspaceClusterFilter>): Promise<WorkspaceClusterWoTls[]>;
 }
-export interface WorkspaceClusterFilter extends Pick<WorkspaceCluster, "state" | "controller" | "url"> {
+export interface WorkspaceClusterFilter extends Pick<WorkspaceCluster, "state" | "govern" | "url"> {
     minScore: number;
 }

@@ -57,10 +57,6 @@ export class DBWorkspaceCluster implements WorkspaceCluster {
     @Column()
     maxScore: number;
 
-    @Index("ind_controller")
-    @Column({
-        type: "char",
-        length: 20,
-    })
-    controller: string;
+    @Column()
+    govern: boolean;
 }

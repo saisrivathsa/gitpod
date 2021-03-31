@@ -6,7 +6,7 @@
 
 import {MigrationInterface, QueryRunner} from "typeorm";
 
-export class WorkspaceCluster1616053452453 implements MigrationInterface {
+export class WorkspaceCluster1617205663692 implements MigrationInterface {
 
     public async up(queryRunner: QueryRunner): Promise<any> {
         await queryRunner.query(`
@@ -17,10 +17,9 @@ export class WorkspaceCluster1616053452453 implements MigrationInterface {
                     state char(20) NOT NULL,
                     score int,
                     maxScore int,
-                    controller char(20) NOT NULL,
+                    govern tinyint(4) NOT NULL,
                 PRIMARY KEY (name), 
-                KEY ind_state (state), 
-                KEY ind_controller (controller))
+                KEY ind_state (state))
             ENGINE=InnoDB
             DEFAULT CHARSET=utf8mb4;`
         );
